@@ -23,7 +23,7 @@ if sys.platform == 'win32' :
     os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x,y)
 
 elif sys.platform == 'linux':
-    os.environ["SDL_MOUSEDEV"] = "/dev/input/event2"
+    os.environ["SDL_MOUSEDEV"] = "/dev/input/event3"
     
 
 def setup_custom_logger(name):
