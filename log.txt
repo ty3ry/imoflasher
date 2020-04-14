@@ -1,3 +1,3 @@
-2020-04-13 10:48:59 INFO     init pygame
-2020-04-13 10:48:59 INFO     Set display Set to (960, 540)
-2020-04-13 10:48:59 INFO     Screen size : 960 x 540 
+2020-04-14 09:09:26 INFO     init pygame
+2020-04-14 09:09:26 INFO     Set display Fullscreen
+2020-04-14 09:09:27 INFO     Screen size : 1920 x 1080 
