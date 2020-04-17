@@ -61,34 +61,60 @@ def main():
     c_usb_scan = 0
     progbar_line1, progbar_line2, progbar_line3, progbar_line4 = (0,0,0,0)
     scan_state = False
+    system_state = c.SYSTEM_STATE_IDLE
+    system_state_msg = ""
 
-    if filehandler.scan_is_current_config_file_exist() == 0 :
-        project_name = filehandler.get_project_name()
-        frame.update_filename(project_name)
+    if filehandler.scan_is_current_config_file_exist() == 0 and \
+        filehandler.scan_is_current_firmware_exist() == 0 and \
+        filehandler.check_validity() == 1:
+            project_name = filehandler.get_project_name()
+            frame.update_filename(project_name)
+            system_state = c.SYSTEM_STATE_READY
     else :
-        pass
+        frame.update_filename("No file available")
 
-    
-
+    ''' main while '''
     while run:
+
         frame.run()
-
         frame.update_status("RUN", "RUN", "RUN", "RUN")
-        
-        if c_usb_scan > 50:
-            message = \
-            msg_usb_scan = {
-                c.USB_SCAN_STATE_IDLE: "(USB) Waiting update",
-                c.USB_SCAN_STATE_CHECK_CONFIG_FILE : "(USB) Check config file",
-                c.USB_SCAN_STATE_CHECK_FIRMWARE_FILE : "(USB) Check firmware file",
-                c.USB_SCAN_STATE_CHECK_MD5 : "(USB) Check MD5 ",
-                c.USB_SCAN_STATE_COPY_DIRECTORY : "(USB) Copy Directory to local target",
-            }.get(filehandler.usb_scan(), "Idle")
-            
-            frame.update_system_state(message)
 
-            c_usb_scan = 0
-        c_usb_scan = c_usb_scan + 1
+        ''' IDLE '''
+        if system_state == c.SYSTEM_STATE_IDLE:
+
+            if c_usb_scan > 50:
+                c_usb_scan = 0
+
+                if filehandler.check_usb_plug() :
+                    if scan_state == False:
+                        log.info("(USB) Plugin")
+                        system_state_msg = "(USB) Plugin"
+                        scan_state = True
+                else:
+                    if scan_state == True:
+                        log.info("(USB) Plugout")
+                        system_state_msg = "(USB) Plugout"
+                        scan_state = False
+
+                if scan_state == True:
+                    system_state_msg = \
+                    msg_usb_scan = {
+                        c.USB_SCAN_STATE_IDLE: "(USB) Read....",
+                        c.USB_SCAN_STATE_CHECK_CONFIG_FILE : "(USB) Check config file",
+                        c.USB_SCAN_STATE_CHECK_FIRMWARE_FILE : "(USB) Check firmware file",
+                        c.USB_SCAN_STATE_CHECK_MD5 : "(USB) Check MD5 ",
+                        c.USB_SCAN_STATE_COPY_DIRECTORY : "(USB) Copy Directory to local target",
+                    }.get(filehandler.usb_scan(), "")
+                
+                
+            c_usb_scan = c_usb_scan + 1
+        
+        elif system_state == c.SYSTEM_STATE_USB_SCAN:
+            pass
+        else:
+            pass
+        
+        frame.update_system_state(system_state_msg)
 
         if counter > 10:
             #log.info("tick")

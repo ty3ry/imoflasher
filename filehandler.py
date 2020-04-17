@@ -3,6 +3,7 @@ import configparser
 import constant as c
 import hashlib
 import shutil, os
+from subprocess import call, DEVNULL, STDOUT
 
 class FileHandler():
     def __init__(self):
@@ -17,9 +18,20 @@ class FileHandler():
 
         self.usb_scan_state = c.USB_SCAN_STATE_IDLE
         self.firmware_filename = ""
+        self._copy_done = False
 
     def set_firmware_filename(self, firmware_filename):
-        self._firmware_filename = firmware_filename
+        self.firmware_filename = firmware_filename
+    
+    def check_usb_plug(self):
+        # get usb plug status with subprocess on /device
+        args = [0] * 2
+        args[0] = "ls"
+        args[1] = "/dev/sda"
+        if call([args[0], args[1]], stdout=DEVNULL, stderr=STDOUT) == 0:
+            return 1
+        else :
+            return 0
 
     def scan(self):
         '''
@@ -45,7 +57,7 @@ class FileHandler():
             status = -2
         return status
 
-    def scan_is_current_file_exist(self):
+    def scan_is_current_firmware_exist(self):
         status = 0
         if path.isdir("./flasher") :
             if path.isfile("./flasher/target.ldf"):
@@ -55,6 +67,24 @@ class FileHandler():
         else :
             status = -2
         return status
+
+    def check_validity(self):
+        result = 0
+        # read config file
+        self.config.read('./flasher/flasher.ini')
+        md5_config = self.config['file']['md5']
+        try :
+            f = open('./flasher/target.ldf', "rb").read()
+            md5_target = hashlib.md5(f).hexdigest()
+            if md5_config == md5_target:
+                result = 1
+            else :
+                result = 0
+        except Exception as err:
+            result = 0
+        
+        return result 
+
 
     def get_project_name(self):
         self.config.read('./flasher/flasher.ini')
@@ -67,18 +97,26 @@ class FileHandler():
 
     def usb_scan(self):
         usb_event = c.USB_SCAN_STATE_IDLE
+        error_note = ""
 
         # state machine for usb scan
         if self.usb_scan_state == c.USB_SCAN_STATE_IDLE:
             usb_event = c.USB_SCAN_STATE_IDLE
+
             # do check directory
             if path.isdir(self._usb_mount_directory):
-                self.usb_scan_state = c.USB_SCAN_STATE_CHECK_CONFIG_FILE
+                '''
+
+                '''
+                if self._copy_done == False:
+                    self.usb_scan_state = c.USB_SCAN_STATE_CHECK_CONFIG_FILE
             else:
                 self.usb_scan_state = c.USB_SCAN_STATE_IDLE
+                # reset flag done
+                self._copy_done = False
 
             # return event
-            return usb_event
+            return usb_event, error_note
 
         elif self.usb_scan_state == c.USB_SCAN_STATE_CHECK_CONFIG_FILE:
             usb_event = c.USB_SCAN_STATE_CHECK_CONFIG_FILE
@@ -87,9 +125,10 @@ class FileHandler():
                 self.usb_scan_state = c.USB_SCAN_STATE_CHECK_FIRMWARE_FILE
                 self.config.read(self._usb_mount_directory + 'flasher.ini')
             else:
+                error_note = c.MESSAGE_USB_SCAN_ERR_CONFIG_FILE_NOT_FOUND #"flasher.ini file not found"
                 self.usb_scan_state = c.USB_SCAN_STATE_IDLE
 
-            return usb_event
+            return usb_event, error_note
 
         elif self.usb_scan_state == c.USB_SCAN_STATE_CHECK_FIRMWARE_FILE:
             usb_event = c.USB_SCAN_STATE_CHECK_FIRMWARE_FILE
@@ -100,17 +139,16 @@ class FileHandler():
             if path.isfile(self._usb_mount_directory + self.firmware_filename):
                 self.usb_scan_state = c.USB_SCAN_STATE_CHECK_MD5
             else:
+                error_note = c.MESSAGE_USB_SCAN_ERR_FIRMWARE_FILE_NOT_FOUND #"Firmwware file {} not found".format(self.firmware_filename)
                 self.usb_scan_state = c.USB_SCAN_STATE_IDLE
 
-            return usb_event
+            return usb_event, error_note
 
         elif self.usb_scan_state == c.USB_SCAN_STATE_CHECK_MD5:
             usb_event = c.USB_SCAN_STATE_CHECK_MD5
 
             # open file
             try:
-                print("Filename : {}".format(self._usb_mount_directory + self.firmware_filename))
-                #with open(self._usb_mount_directory + self.firmware_filename, "rb") as f:
                 f = open(self._usb_mount_directory + self.firmware_filename, "rb").read()
 
                 md5_ref = self.config['file']['md5']
@@ -119,11 +157,15 @@ class FileHandler():
                 if md5_ref == md5_cur :
                     self.usb_scan_state = c.USB_SCAN_STATE_COPY_DIRECTORY
                 else:
+                    error_note = c.MESSAGE_USB_SCAN_ERR_MD5_NOT_MATCH #"MD5 checksum not match"
                     self.usb_scan_state = c.USB_SCAN_STATE_IDLE
+
             except Exception as err:
+                error_note = c.MESSAGE_USB_SCAN_ERR_COPYING #"File open error"
                 self.usb_scan_state = c.USB_SCAN_STATE_IDLE
-            
-            return usb_event
+
+
+            return usb_event, error_note
 
         elif self.usb_scan_state == c.USB_SCAN_STATE_COPY_DIRECTORY:
             '''
@@ -142,13 +184,17 @@ class FileHandler():
                 shutil.copy(self._usb_mount_directory + 'flasher.ini', './flasher/')
                 shutil.copy(self._usb_mount_directory + self.firmware_filename, './flasher/target.ldf')
                 
+                self._copy_done = True
             except Exception as err:
-                print("Error Copying.. {}".format(err))
                 self.usb_scan_state = c.USB_SCAN_STATE_IDLE
+
             finally:
                 self.usb_scan_state = c.USB_SCAN_STATE_IDLE
-            return usb_event
+
+            return usb_event, error_note
 
         else:
             pass
 
+    def usb_scan_result(self):
+        pass
