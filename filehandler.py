@@ -81,7 +81,17 @@ class FileHandler():
         self.config.read('./flasher/flasher.ini')
         return self.config['project']['name']
 
+    def remove_current_directory(self):
+        try:
+            shutil.rmtree("./flasher")
+        except Exception as err:
+            print("Error remove directory : {}".format(err))
 
+    def check_flasher_directory(self):
+        if path.isdir('./flasher'):
+            return 1
+        else :
+            return 0
 
     def usb_scan(self):
 
@@ -179,5 +189,3 @@ class FileHandler():
         else:
             pass
 
-    def usb_scan_result(self):
-        pass

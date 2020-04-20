@@ -4,7 +4,7 @@ import constant as c
 
 class Frame():
 	def __init__(self, screen, screen_w = 0, screen_h = 0):
-    
+	
 		self.screen_w = screen_w
 		self.screen_h = screen_h - 100
 
@@ -22,6 +22,10 @@ class Frame():
 		self.percentage_line2 = 30
 		self.percentage_line3 = 50
 		self.percentage_line4 = 100
+
+		# for filename blink
+		self.flag_filename_blink = False
+		self.c_filename_empty_blink = 0
 
 	def init_frame(self):
 		# rectangle for line 1 control
@@ -428,8 +432,27 @@ class Frame():
 		self.label_flasher_status_value_line3 = self.label_flasher_status_value_line3_template.render("{}".format(status_line3), 1 , c.WHITE)
 		self.label_flasher_status_value_line4 = self.label_flasher_status_value_line4_template.render("{}".format(status_line4), 1 , c.WHITE)
 
-	def update_filename(self, filename):
-		self.label_filename_value = self.label_filename_value_template.render("{}".format(filename), 1 , c.YELLOW)
+	def update_filename(self, filename, color):
+		self.label_filename_value = self.label_filename_value_template.render("{}".format(filename), 1 , color)
+
+	def update_filename_blink(self, filename, ready_state):
+		
+		if ready_state == True:
+			color = c.YELLOW
+			self.update_filename(filename, color)
+		else :
+			color = c.RED
+			
+			if self.c_filename_empty_blink > 20:
+				self.c_filename_empty_blink = 0
+				self.flag_filename_blink = not self.flag_filename_blink
+				if self.flag_filename_blink:
+					self.update_filename("empty", color)
+				else:
+					self.update_filename("", color)
+
+			self.c_filename_empty_blink = self.c_filename_empty_blink + 1
+			
 
 	def update_system_state(self, sys_state):
 		self.label_system_state_value = self.label_system_state_value_template.render("{}".format(sys_state), 1 , c.WHITE)
