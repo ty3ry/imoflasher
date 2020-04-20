@@ -59,61 +59,117 @@ def main():
     run = True
     counter = 0
     c_usb_scan = 0
+    c_usb_insertion_detect = 0
+
     progbar_line1, progbar_line2, progbar_line3, progbar_line4 = (0,0,0,0)
     scan_state = False
     system_state = c.SYSTEM_STATE_IDLE
     system_state_msg = ""
+    flag_ready = False
 
-    if filehandler.scan_is_current_config_file_exist() == 0 and \
-        filehandler.scan_is_current_firmware_exist() == 0 and \
-        filehandler.check_validity() == 1:
+    # debug filehandler
+    log.info("Config file \t : {}".format(filehandler.check_config_file()))
+    log.info("firmware file \t : {}".format(filehandler.check_firmware()))
+    log.info("MD5 status \t : {}".format(filehandler.check_firmware_validity()))
+
+    if filehandler.check_config_file() == 0 and \
+        filehandler.check_firmware() == 0 and \
+        filehandler.check_firmware_validity() == 1:
             project_name = filehandler.get_project_name()
             frame.update_filename(project_name)
             system_state = c.SYSTEM_STATE_READY
+            log.info("System ready")
+            flag_ready = True
     else :
         frame.update_filename("No file available")
+        log.info("Firmware not exist in current directory.")
+        flag_ready = False
 
     ''' main while '''
     while run:
 
-        frame.run()
-        frame.update_status("RUN", "RUN", "RUN", "RUN")
+        '''
+        usb insertion detection
+        '''
+        if c_usb_insertion_detect > 40:
+            c_usb_insertion_detect = 0
+            if filehandler.check_usb_plug() :
+                if scan_state == False:
+                    log.info("(USB) Plugin")
+                    system_state_msg = "(USB) Plugin"
+                    scan_state = True
+                    flag_ready = False
+            else:
+                if scan_state == True:
+                    log.info("(USB) Plugout")
+                    system_state_msg = "(USB) Plugout"
+                    scan_state = False
+            log.info("System state : {}".format(system_state))
+        c_usb_insertion_detect = c_usb_insertion_detect + 1
 
-        ''' IDLE '''
+        # - IDLE -
         if system_state == c.SYSTEM_STATE_IDLE:
-
+            
+            if scan_state == True and flag_ready == False:
+                system_state = c.SYSTEM_STATE_USB_SCAN
+            else:
+                system_state = c.SYSTEM_STATE_IDLE
+                if flag_ready == True:
+                    system_state_msg = "System ready to flash"
+                else:
+                    system_state_msg = "Current file empty, please update via USB Disk"
+            
+        # - USB SCAN -
+        elif system_state == c.SYSTEM_STATE_USB_SCAN:
             if c_usb_scan > 50:
                 c_usb_scan = 0
 
-                if filehandler.check_usb_plug() :
-                    if scan_state == False:
-                        log.info("(USB) Plugin")
-                        system_state_msg = "(USB) Plugin"
-                        scan_state = True
-                else:
-                    if scan_state == True:
-                        log.info("(USB) Plugout")
-                        system_state_msg = "(USB) Plugout"
-                        scan_state = False
-
                 if scan_state == True:
-                    system_state_msg = \
-                    msg_usb_scan = {
-                        c.USB_SCAN_STATE_IDLE: "(USB) Read....",
-                        c.USB_SCAN_STATE_CHECK_CONFIG_FILE : "(USB) Check config file",
-                        c.USB_SCAN_STATE_CHECK_FIRMWARE_FILE : "(USB) Check firmware file",
-                        c.USB_SCAN_STATE_CHECK_MD5 : "(USB) Check MD5 ",
-                        c.USB_SCAN_STATE_COPY_DIRECTORY : "(USB) Copy Directory to local target",
-                    }.get(filehandler.usb_scan(), "")
-                
-                
+                    try:
+                        usb_scan_state = filehandler.usb_scan()
+
+                        if usb_scan_state == c.USB_SCAN_STATE_IDLE:
+                            system_state_msg = "(USB) Read"
+                        elif usb_scan_state == c.USB_SCAN_STATE_CHECK_CONFIG_FILE:
+                            system_state_msg = "(USB) Check config file"
+                        elif usb_scan_state == c.USB_SCAN_STATE_CHECK_FIRMWARE_FILE:
+                            system_state_msg = "(USB) Check firmware file"
+                        elif usb_scan_state == c.USB_SCAN_STATE_CHECK_MD5:
+                            system_state_msg = "(USB) Check MD5"
+                        elif usb_scan_state == c.USB_SCAN_STATE_COPY_DIRECTORY:
+                            system_state_msg = "(USB) Copy directory to local target"
+                            system_state = c.SYSTEM_STATE_CHECK_FIRMWARE_EXISTANCE
+                        else :
+                            pass
+
+                    except Exception as err:
+                        system_state = c.SYSTEM_STATE_IDLE
+                        log.error("Err : {}".format(err))
+                        system_state_msg = "Error :" + err
+
             c_usb_scan = c_usb_scan + 1
-        
-        elif system_state == c.SYSTEM_STATE_USB_SCAN:
-            pass
+
+        # - Check file validity
+        elif system_state == c.SYSTEM_STATE_CHECK_FIRMWARE_EXISTANCE:
+            if filehandler.check_config_file() == 0 \
+                and filehandler.check_firmware() == 0   \
+                and filehandler.check_firmware_validity() == 1:
+                    system_state = c.SYSTEM_STATE_READY
+                    system_state_msg = "Done"
+            else:
+                system_state = c.SYSTEM_STATE_IDLE
+
+        elif system_state == c.SYSTEM_STATE_READY:
+            project_name = filehandler.get_project_name()
+            frame.update_filename(project_name)
+            system_state_msg = "Ready"
+            flag_ready = True
+            system_state = c.SYSTEM_STATE_IDLE
         else:
             pass
         
+        frame.run()
+        frame.update_status("RUN", "RUN", "RUN", "RUN")
         frame.update_system_state(system_state_msg)
 
         if counter > 10:

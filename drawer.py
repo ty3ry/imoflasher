@@ -4,7 +4,7 @@ import constant as c
 
 class Frame():
 	def __init__(self, screen, screen_w = 0, screen_h = 0):
-
+    
 		self.screen_w = screen_w
 		self.screen_h = screen_h - 100
 
@@ -93,25 +93,25 @@ class Frame():
 		self.label_line1_title_template.set_bold(True)
 		self.label_line1_title = self.label_line1_title_template.render("Line-1", 1 , c.WHITE)
 		self.label_title_line1_x = (((self.screen_w/2)/2) - (self.label_line1_title.get_width()/2))
-		self.label_title_line1_y = 20
+		self.label_title_line1_y = self.rect_background_title_line1_h/2/2
 
 		self.label_line2_title_template = pg.font.SysFont('comicsansms', 30)
 		self.label_line2_title_template.set_bold(True)
 		self.label_line2_title = self.label_line2_title_template.render("Line-2", 1 , c.WHITE)
 		self.label_title_line2_x = (self.screen_w - ((self.screen_w/2)/2) - (self.label_line2_title.get_width()/2))
-		self.label_title_line2_y = 20
+		self.label_title_line2_y = self.rect_background_title_line2_h/2/2
 
 		self.label_line3_title_template = pg.font.SysFont('comicsansms', 30)
 		self.label_line3_title_template.set_bold(True)
 		self.label_line3_title = self.label_line3_title_template.render("Line-3", 1 , c.WHITE)
 		self.label_title_line3_x = (((self.screen_w/2)/2) - (self.label_line3_title.get_width()/2))
-		self.label_title_line3_y = ((self.screen_h/2) + self.border_width) + 20
+		self.label_title_line3_y = ((self.screen_h/2) + self.border_width) + (self.rect_background_title_line3_h/2/2)
 
 		self.label_line4_title_template = pg.font.SysFont('comicsansms', 30)
 		self.label_line4_title_template.set_bold(True)
 		self.label_line4_title = self.label_line4_title_template.render("Line-4", 1 , c.WHITE)
 		self.label_title_line4_x = (self.screen_w - ((self.screen_w/2)/2) - (self.label_line4_title.get_width()/2))
-		self.label_title_line4_y = ((self.screen_h/2) + self.border_width) + 20
+		self.label_title_line4_y = ((self.screen_h/2) + self.border_width) + (self.rect_background_title_line4_h/2/2)
 		
 		## status
 		# label for flasher status template ( line 1 )

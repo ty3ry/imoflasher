@@ -25,6 +25,14 @@ USB_SCAN_STATE_CHECK_FIRMWARE_FILE = 2
 USB_SCAN_STATE_CHECK_MD5 = 3
 USB_SCAN_STATE_COPY_DIRECTORY = 4
 
+# usb event
+USB_EVENT_IDLE = 0
+USB_EVENT_READING = 1
+USB_EVENT_CHECK_CONFIG_FILE = 2
+USB_EVENT_CHECK_FIRMWARE_FILE = 3
+USB_EVENT_CHECK_MD5 = 4
+USB_EVENT_COPYING_FILE = 5
+
 
 
 # system state
@@ -43,7 +51,15 @@ copy file config file and firmware file to current local
 firmware directory
 '''
 SYSTEM_STATE_USB_SCAN = 2
-SYSTEM_STATE_BUSY = 3
+
+'''
+check current firmware existance and check file validity
+with MD5 checksum
+'''
+SYSTEM_STATE_CHECK_FIRMWARE_EXISTANCE = 3
+
+
+SYSTEM_STATE_BUSY = 4
 
 
 
