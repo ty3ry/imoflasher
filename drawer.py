@@ -127,7 +127,7 @@ class Frame():
 
 		# label for flasher status value ( line 1 )
 		self.label_flasher_status_value_line1_template = pg.font.SysFont('comicsansms', 50)
-		self.label_flasher_status_value_line1_template.set_bold(True)
+		self.label_flasher_status_value_line1_template.set_bold(False)
 		self.label_flasher_status_value_line1 = self.label_flasher_status_value_line1_template.render("{}:".format("---"), 1 , c.WHITE)
 		self.label_flasher_status_value_line1_x = self.label_flasher_status_line1.get_width() + 80
 		self.label_flasher_status_value_line1_y = 0 + 120
@@ -141,7 +141,7 @@ class Frame():
 
 		# label for flasher status value ( line 2 )
 		self.label_flasher_status_value_line2_template = pg.font.SysFont('comicsansms', 50)
-		self.label_flasher_status_value_line2_template.set_bold(True)
+		self.label_flasher_status_value_line2_template.set_bold(False)
 		self.label_flasher_status_value_line2 = self.label_flasher_status_value_line2_template.render("{}:".format("---"), 1 , c.WHITE)
 		self.label_flasher_status_value_line2_x = (self.screen_w/2) + self.label_flasher_status_line2.get_width() + 80
 		self.label_flasher_status_value_line2_y = 0 + 120
@@ -155,7 +155,7 @@ class Frame():
 
 		# label for flasher status value ( line 3 )
 		self.label_flasher_status_value_line3_template = pg.font.SysFont('comicsansms', 50)
-		self.label_flasher_status_value_line3_template.set_bold(True)
+		self.label_flasher_status_value_line3_template.set_bold(False)
 		self.label_flasher_status_value_line3 = self.label_flasher_status_value_line3_template.render("{}:".format("---"), 1 , c.WHITE)
 		self.label_flasher_status_value_line3_x = self.label_flasher_status_line3.get_width() + 80
 		self.label_flasher_status_value_line3_y = (self.screen_h/2) + 120
@@ -169,7 +169,7 @@ class Frame():
 
 		# label for flasher status value ( line 4 )
 		self.label_flasher_status_value_line4_template = pg.font.SysFont('comicsansms', 50)
-		self.label_flasher_status_value_line4_template.set_bold(True)
+		self.label_flasher_status_value_line4_template.set_bold(False)
 		self.label_flasher_status_value_line4 = self.label_flasher_status_value_line4_template.render("{}:".format("---"), 1 , c.WHITE)
 		self.label_flasher_status_value_line4_x = (self.screen_w/2) + self.label_flasher_status_line4.get_width() + 80
 		self.label_flasher_status_value_line4_y = (self.screen_h/2) + 120
@@ -320,29 +320,29 @@ class Frame():
 		self.label_line1_error_code_template = pg.font.SysFont('comicsansms', 30)
 		self.label_line1_error_code_template.set_bold(False)
 		self.label_line1_error_code = self.label_line1_error_code_template.render("E{}".format('--'), 1 , c.RED)
-		self.label_line1_error_code_x = 0
-		self.label_line1_error_code_y = 0
+		self.label_line1_error_code_x = 20
+		self.label_line1_error_code_y = self.label_time_line1_y + 40
 
 		# label for system error code (line2)
 		self.label_line2_error_code_template = pg.font.SysFont('comicsansms', 30)
 		self.label_line2_error_code_template.set_bold(False)
 		self.label_line2_error_code = self.label_line2_error_code_template.render("E{}".format('--'), 1 , c.RED)
-		self.label_line2_error_code_x = 0
-		self.label_line2_error_code_y = 0
+		self.label_line2_error_code_x = (self.screen_w/2) + 20
+		self.label_line2_error_code_y = self.label_time_line1_y + 40
 
 		# label for system error code (line3)
 		self.label_line3_error_code_template = pg.font.SysFont('comicsansms', 30)
 		self.label_line3_error_code_template.set_bold(False)
 		self.label_line3_error_code = self.label_line3_error_code_template.render("E{}".format('--'), 1 , c.RED)
-		self.label_line3_error_code_x = 0
-		self.label_line3_error_code_y = 0
+		self.label_line3_error_code_x = 20
+		self.label_line3_error_code_y = (self.screen_h - self.rect_line1_h) + self.label_time_line1_y + 40
 
 		# label for system error code (line4)
 		self.label_line4_error_code_template = pg.font.SysFont('comicsansms', 30)
 		self.label_line4_error_code_template.set_bold(False)
 		self.label_line4_error_code = self.label_line4_error_code_template.render("E{}".format('--'), 1 , c.RED)
-		self.label_line4_error_code_x = 0
-		self.label_line4_error_code_y = 0
+		self.label_line4_error_code_x = (self.screen_w/2) + 20
+		self.label_line4_error_code_y = (self.screen_h - self.rect_line1_h) + self.label_time_line1_y + 40
 
 		# taskbar rectangle
 		self.rect_taskbar_x = 0
@@ -424,6 +424,30 @@ class Frame():
 		self.label_flasher_percentage_line2 = self.label_flasher_percentage_line2_template.render("{} % ".format(round(progbar_line2*100)), 1 , c.WHITE)
 		self.label_flasher_percentage_line3 = self.label_flasher_percentage_line3_template.render("{} % ".format(round(progbar_line3*100)), 1 , c.WHITE)
 		self.label_flasher_percentage_line4 = self.label_flasher_percentage_line1_template.render("{} % ".format(round(progbar_line4*100)), 1 , c.WHITE)
+	
+	def update_error_line1(self, error, visible=False):
+		if visible:
+			self.label_line1_error_code = self.label_line1_error_code_template.render("{}".format(error), 1 , c.RED)
+		else:
+			self.label_line1_error_code = self.label_line1_error_code_template.render("{}".format(" "), 1 , c.RED)
+
+	def update_error_line2(self, error, visible):
+		if visible:
+			self.label_line2_error_code = self.label_line2_error_code_template.render("{}".format(error), 1 , c.RED)
+		else:
+			self.label_line2_error_code = self.label_line2_error_code_template.render("{}".format(" "), 1 , c.RED)
+
+	def update_error_line3(self, error, visible):
+		if visible:
+			self.label_line3_error_code = self.label_line3_error_code_template.render("{}".format(error), 1 , c.RED)
+		else:
+			self.label_line3_error_code = self.label_line3_error_code_template.render("{}".format(" "), 1 , c.RED)
+
+	def update_error_line4(self, error, visible):
+		if visible:
+			self.label_line4_error_code = self.label_line4_error_code_template.render("{}".format(error), 1 , c.RED)
+		else:
+			self.label_line4_error_code = self.label_line4_error_code_template.render("{}".format(" "), 1 , c.RED)
 
 	def update_status(self, status_line1, status_line2, status_line3, status_line4):
 		# status value
@@ -458,10 +482,10 @@ class Frame():
 		self.label_system_state_value = self.label_system_state_value_template.render("{}".format(sys_state), 1 , c.WHITE)
 
 	def update_time(self, time_line1, time_line2, time_line3, time_line4):
-		self.label_time_value_line1 = self.label_time_value_line1_template.render("{}".format(time_line1), 1 , c.WHITE)
-		self.label_time_value_line2 = self.label_time_value_line2_template.render("{}".format(time_line2), 1 , c.WHITE)
-		self.label_time_value_line3 = self.label_time_value_line3_template.render("{}".format(time_line3), 1 , c.WHITE)
-		self.label_time_value_line4 = self.label_time_value_line4_template.render("{}".format(time_line4), 1 , c.WHITE)
+		self.label_time_value_line1 = self.label_time_value_line1_template.render("{} s".format(time_line1), 1 , c.WHITE)
+		self.label_time_value_line2 = self.label_time_value_line2_template.render("{} s".format(time_line2), 1 , c.WHITE)
+		self.label_time_value_line3 = self.label_time_value_line3_template.render("{} s".format(time_line3), 1 , c.WHITE)
+		self.label_time_value_line4 = self.label_time_value_line4_template.render("{} s".format(time_line4), 1 , c.WHITE)
 
 	def draw_component(self, screen):
 
@@ -500,6 +524,13 @@ class Frame():
 		screen.blit(self.label_time_value_line2, (self.label_time_value_line2_x, self.label_time_value_line2_y))
 		screen.blit(self.label_time_value_line3, (self.label_time_value_line3_x, self.label_time_value_line3_y))
 		screen.blit(self.label_time_value_line4, (self.label_time_value_line4_x, self.label_time_value_line4_y))
+
+		# draw label error
+		screen.blit(self.label_line1_error_code, (self.label_line1_error_code_x, self.label_line1_error_code_y))
+		screen.blit(self.label_line2_error_code, (self.label_line2_error_code_x, self.label_line2_error_code_y))
+		screen.blit(self.label_line3_error_code, (self.label_line3_error_code_x, self.label_line3_error_code_y))
+		screen.blit(self.label_line4_error_code, (self.label_line4_error_code_x, self.label_line4_error_code_y))
+
 
 		# draw rect control
 		pg.draw.rect(screen, c.WHITE, (

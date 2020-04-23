@@ -19,6 +19,9 @@ from filehandler import FileHandler
 from downloader import Downloader
 from task_manager import TaskManager, Message
 from multiprocessing import Pipe, current_process
+from datetime import datetime
+from control import Control
+import wiringpi
 
 # adjust position 
 if sys.platform == 'win32' :
@@ -43,9 +46,33 @@ def setup_custom_logger(name):
 log = setup_custom_logger("logger")
 
 # downloader init
-dl_line1 = Downloader(log, '/dev/ttyS2')
+dl_line1 = Downloader(log, '/dev/ttyS1')
+dl_line2 = Downloader(log, '/dev/ttyS2')
+
 task_manager = TaskManager()
+pipe_message = Message()
 pipe_parent_line1, pipe_child_line1 = Pipe(duplex=True)
+pipe_parent_line2, pipe_child_line2 = Pipe(duplex=True)
+pipe_parent_line3, pipe_child_line3 = Pipe(duplex=True)
+pipe_parent_line4, pipe_child_line4 = Pipe(duplex=True)
+
+pipe_parent_msgs = []
+pipe_parent_msgs.append(pipe_parent_line1)
+pipe_parent_msgs.append(pipe_parent_line2)
+pipe_parent_msgs.append(pipe_parent_line3)
+pipe_parent_msgs.append(pipe_parent_line4)
+
+ctrl_line1 = Control()
+ctrl_line2 = Control()
+ctrl_line3 = Control()
+ctrl_line4 = Control()
+
+# pin setup
+result = wiringpi.wiringPiSetup()
+log.info("Wiring init result : {}".format("OK" if result==0 else "FAIL"))
+wiringpi.pinMode(c.BUTTON_START_PIN, 0)                 # set as input
+wiringpi.pullUpDnControl(c.BUTTON_START_PIN, 2)         # set internal pullup
+
 
 # pygame init
 pg.init() 
@@ -66,23 +93,27 @@ filehandler = FileHandler()
 
 def main():
     run = True
-    counter = 0
     c_system_state = 0
     c_usb_insertion_detect = 0
     c_filename_empty_blink , flag_filename_blink = 0, False
-    filename_backup = ""
 
-    progbar_line1, progbar_line2, progbar_line3, progbar_line4 = (0,30,70,90)
+    #progbar_line1, progbar_line2, progbar_line3, progbar_line4 = (0,30,70,90)
+    ctrl_line1.progress_value, ctrl_line2.progress_value, ctrl_line3.progress_value, ctrl_line4.progress_value = (0, 0, 0, 0)
     scan_state = False
     system_state = c.SYSTEM_STATE_IDLE
     # string buffer
     str_system_state = ""
     str_filename = ""
     # msg status line
-    str_status_line1, str_status_line2, str_status_line3, str_status_line4 = ("IDLE", "IDLE", "IDLE", "IDLE")
+    #str_status_line1, str_status_line2, str_status_line3, str_status_line4 = ("IDLE", "IDLE", "IDLE", "IDLE")
+    ctrl_line1.string_status, ctrl_line2.string_status, ctrl_line3.string_status, ctrl_line4.string_status = \
+            ("IDLE", "IDLE", "IDLE", "IDLE")
 
     flag_ready = False
     flag_usb_scan_done = False
+    flag_button_pressed = False
+
+    systick_pre = 0
 
     # debug filehandler
     # log.info("Config file \t : {}".format(filehandler.check_config_file()))
@@ -105,11 +136,96 @@ def main():
         flag_ready = False
 
     # update filename/project name
-    frame.update_filename(str_filename, 
-            c.YELLOW if flag_ready == True else c.RED)
+    frame.update_filename(str_filename, c.YELLOW if flag_ready == True else c.RED)
+
+    
 
     ''' main while '''
     while run:
+
+        if wiringpi.digitalRead(c.BUTTON_START_PIN) == 0:
+            if flag_button_pressed == False:
+                log.info("Button pressed")
+                flag_button_pressed = True
+
+                # start task
+                if not task_manager.is_task_created(c.TASK_LINE1_NAME):
+                    task_manager.create(c.TASK_LINE1_NAME, func=dl_line1.run, args=(pipe_parent_line1, pipe_child_line1,) )
+                    task_manager.start(c.TASK_LINE1_NAME)
+
+                if not task_manager.is_task_created(c.TASK_LINE2_NAME):
+                    task_manager.create(c.TASK_LINE2_NAME, func=dl_line2.run, args=(pipe_parent_line2, pipe_child_line2,) )
+                    task_manager.start(c.TASK_LINE2_NAME)
+        else:
+            flag_button_pressed = False
+
+
+        if task_manager.is_task_created(c.TASK_LINE1_NAME) and \
+            not task_manager.is_alive(c.TASK_LINE1_NAME):
+            # terminate task
+            task_manager.terminate(c.TASK_LINE1_NAME)
+
+        if task_manager.is_task_created(c.TASK_LINE2_NAME) and \
+            not task_manager.is_alive(c.TASK_LINE2_NAME):
+            # terminate task
+            task_manager.terminate(c.TASK_LINE2_NAME)
+
+        for child_msg in pipe_message.receive(pipe_parent_msgs):
+            source , msg, payload = child_msg
+                
+            # Control Line 1
+            if source == c.TASK_LINE1_NAME:
+                if msg == c.MESSAGE_DOWNLOADER_UPLOAD_PROGRESS :
+                    ctrl_line1.progress_value = payload
+                elif msg == c.MESSAGE_DOWNLOADER_START_TIMER:
+                    ctrl_line1.tick_time = 0
+                    ctrl_line1.tick_start_state = True
+                    ctrl_line1.error_show = False
+                    ctrl_line1.string_status = "RUN"
+                    ctrl_line1.progress_value = 0
+                elif msg == c.MESSAGE_DOWNLOADER_END_TIMER:
+                    ctrl_line1.tick_start_state = False
+                elif msg == c.MESSAGE_DOWNLOADER_FINISH_UPLOAD:
+                    ctrl_line1.tick_start_state = False
+                    ctrl_line1.string_status = "SUCCESS"
+                elif msg == c.MESSAGE_DOWNLOADER_ERROR:
+                    ctrl_line1.string_status = "Failed"
+                    ctrl_line1.string_error_value = payload
+                    ctrl_line1.error_show = True
+                    ctrl_line1.tick_start_state = False
+                
+            # Control Line 2
+            elif source == c.TASK_LINE2_NAME:
+                if msg == c.MESSAGE_DOWNLOADER_UPLOAD_PROGRESS :
+                    ctrl_line2.progress_value = payload
+                elif msg == c.MESSAGE_DOWNLOADER_START_TIMER:
+                    ctrl_line2.tick_time = 0
+                    ctrl_line2.tick_start_state = True
+                    ctrl_line2.error_show = False
+                    ctrl_line2.string_status = "RUN"
+                    ctrl_line2.progress_value = 0
+                elif msg == c.MESSAGE_DOWNLOADER_END_TIMER:
+                    ctrl_line2.tick_start_state = False
+                elif msg == c.MESSAGE_DOWNLOADER_FINISH_UPLOAD:
+                    ctrl_line2.tick_start_state = False
+                    ctrl_line2.string_status = "SUCCESS"
+                elif msg == c.MESSAGE_DOWNLOADER_ERROR:
+                    ctrl_line2.string_status = "Failed"
+                    ctrl_line2.string_error_value = payload
+                    ctrl_line2.error_show = True
+                    ctrl_line2.tick_start_state = False
+
+        # tick
+        if systick_pre != datetime.now().second:
+            systick_pre = datetime.now().second
+            if ctrl_line1.tick_start_state:
+                ctrl_line1.tick_time = ctrl_line1.tick_time + 1
+            if ctrl_line2.tick_start_state:
+                ctrl_line2.tick_time = ctrl_line2.tick_time + 1
+            if ctrl_line3.tick_start_state:
+                ctrl_line3.tick_time = ctrl_line3.tick_time + 1
+            if ctrl_line4.tick_start_state:
+                ctrl_line4.tick_time = ctrl_line4.tick_time + 1    
 
         '''
         usb insertion detection
@@ -129,7 +245,7 @@ def main():
                     str_system_state = "(USB) Plugout"
                     scan_state = False
                     
-            log.info("System state : {}".format(system_state))
+            #log.info("System state : {}".format(system_state))
         c_usb_insertion_detect = c_usb_insertion_detect + 1
 
         if c_system_state > 50:
@@ -206,40 +322,50 @@ def main():
         
         c_system_state = c_system_state + 1
         
-        frame.update_status(str_status_line1, str_status_line2, str_status_line3, str_status_line4)
+        frame.update_status(ctrl_line1.string_status, ctrl_line2.string_status,\
+            ctrl_line3.string_status, ctrl_line4.string_status)
+
+        # update system error status
+        frame.update_error_line1(ctrl_line1.string_error_value, ctrl_line1.error_show)
+        frame.update_error_line2(ctrl_line2.string_error_value, ctrl_line2.error_show)
+        frame.update_error_line3(ctrl_line3.string_error_value, ctrl_line3.error_show)
+        frame.update_error_line4(ctrl_line4.string_error_value, ctrl_line4.error_show)
+
+        # update system state
         frame.update_system_state(str_system_state)
+
         # filename / project name blink state
         frame.update_filename_blink(str_filename, flag_ready)
-        frame.run()
+
         # update progress bar
-        frame.update_progress_bar(progbar_line1, progbar_line2, progbar_line3, progbar_line4)
-        frame.update_time(progbar_line1, progbar_line2, progbar_line3, progbar_line4)
+        frame.update_progress_bar(ctrl_line1.progress_value, ctrl_line2.progress_value,\
+            ctrl_line3.progress_value, ctrl_line4.progress_value)
+        frame.update_time(ctrl_line1.tick_time, ctrl_line2.tick_time, \
+            ctrl_line3.tick_time, ctrl_line4.tick_time)
+        frame.run()
 
 def test_donwloader():
-
-    while True:
-        if not task_manager.is_task_created("tline1"):
-            log.info("Create task tline1")
-            task_manager.create("tline1", func=run_line1, args=(pipe_parent_line1, pipe_child_line1,) )
-            task_manager.start("tline1")
-        
-        if not task_manager.is_alive("tline1"):
-            log.info("Terminate task tline1")
-            # terminate task
-            task_manager.terminate('tline1')
-
-
-
-def run_line1(p_conn, c_conn):
-    log.info("Start task line1")
     run = True
-    pipe_messages = Message()
-
     while run:
-        dl_line1.run()
-        run = False
+        if not task_manager.is_task_created(c.TASK_LINE1_NAME):
+            log.info("Create task tline1")
+            task_manager.create(c.TASK_LINE1_NAME, func=dl_line1.run, args=(pipe_parent_line1, pipe_child_line1,) )
+            task_manager.start(c.TASK_LINE1_NAME)
+        
+        for child_msg in pipe_message.receive(pipe_parent_msgs):
+            source , msg, payload = child_msg
 
+            if not task_manager.is_alive(c.TASK_LINE1_NAME):
+                log.info("Terminate task tline1")
+                # terminate task
+                task_manager.terminate(c.TASK_LINE1_NAME)
+                run = False
+
+            if source == c.TASK_LINE1_NAME:
+                if msg == c.MESSAGE_DOWNLOADER_UPLOAD_PROGRESS :
+                    progress_line1 = payload
+                    log.info("Progress : {}\r".format(progress_line1))
 
 if __name__ == "__main__":
-    #main()
-    test_donwloader()
+    main()
+    #test_donwloader()
