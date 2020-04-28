@@ -46,8 +46,11 @@ def setup_custom_logger(name):
 log = setup_custom_logger("logger")
 
 # downloader init
-dl_line1 = Downloader(log, '/dev/ttyS1')
-dl_line2 = Downloader(log, '/dev/ttyS2')
+dl_line1 = Downloader(log, '/dev/ttyS0')    # 1
+dl_line2 = Downloader(log, '/dev/ttyS1')    # 2
+dl_line3 = Downloader(log, '/dev/ttyS2')
+dl_line4 = Downloader(log, '/dev/ttyS3')
+
 
 task_manager = TaskManager()
 pipe_message = Message()
@@ -93,17 +96,19 @@ filehandler = FileHandler()
 
 def main():
     run = True
-    c_system_state = 0
+    system_usb_scan_state = 0
     c_usb_insertion_detect = 0
     c_filename_empty_blink , flag_filename_blink = 0, False
 
     #progbar_line1, progbar_line2, progbar_line3, progbar_line4 = (0,30,70,90)
     ctrl_line1.progress_value, ctrl_line2.progress_value, ctrl_line3.progress_value, ctrl_line4.progress_value = (0, 0, 0, 0)
     scan_state = False
-    system_state = c.SYSTEM_STATE_IDLE
+    system_state = c.SYSTEM_USB_SCAN_IDLE
     # string buffer
     str_system_state = ""
     str_filename = ""
+    file_check_status = 0
+    
     # msg status line
     #str_status_line1, str_status_line2, str_status_line3, str_status_line4 = ("IDLE", "IDLE", "IDLE", "IDLE")
     ctrl_line1.string_status, ctrl_line2.string_status, ctrl_line3.string_status, ctrl_line4.string_status = \
@@ -119,57 +124,96 @@ def main():
     # log.info("Config file \t : {}".format(filehandler.check_config_file()))
     # log.info("firmware file \t : {}".format(filehandler.check_firmware()))
     # log.info("MD5 status \t : {}".format(filehandler.check_firmware_validity()))
+    file_check_status = filehandler.check_file()
 
-    if filehandler.check_config_file() == 0 and \
-        filehandler.check_firmware() == 0 and \
-        filehandler.check_firmware_validity() == 1:
-            project_name = filehandler.get_project_name()
-            #frame.update_filename(project_name, c.YELLOW)
-            str_filename = project_name
-            system_state = c.SYSTEM_STATE_READY
-            log.info("(Check on startup) System ready")
-            flag_ready = True
+    if file_check_status == 0:
+        project_name = filehandler.get_project_name()
+        #frame.update_filename(project_name, c.YELLOW)
+        str_filename = project_name
+        system_state = c.SYSTEM_USB_SCAN_READY
+        log.info("(Check on startup) System ready")
+        flag_ready = True
     else :
         #frame.update_filename("No file available", c.RED)
-        str_filename = "Empty"
+        str_filename = "kosong"
+        str_system_state = {
+            -1 : c.ERROR_CURRFILE_FLASHER_DIR_NOT_FOUND,
+            -2 : c.ERROR_CURRFILE_CONFIG_FILE_NOT_FOUND,
+            -3 : c.ERROR_CURRFILE_TARGET_FIRMWARE_NOT_FOUND,
+            -4 : c.ERROR_CURRFILE_MD5_NOT_MATCH,
+        }.get(file_check_status, "Error unknown..")
+
         log.info("Firmware not exist in current directory.")
         flag_ready = False
 
     # update filename/project name
     frame.update_filename(str_filename, c.YELLOW if flag_ready == True else c.RED)
 
-    
-
     ''' main while '''
     while run:
-
+        
+        ''' button start pressed event '''
         if wiringpi.digitalRead(c.BUTTON_START_PIN) == 0:
             if flag_button_pressed == False:
                 log.info("Button pressed")
                 flag_button_pressed = True
 
-                # start task
-                if not task_manager.is_task_created(c.TASK_LINE1_NAME):
-                    task_manager.create(c.TASK_LINE1_NAME, func=dl_line1.run, args=(pipe_parent_line1, pipe_child_line1,) )
-                    task_manager.start(c.TASK_LINE1_NAME)
+                ''' start if only system ready'''
+                if flag_ready == True:
+                    ''' Check file validity first '''
+                    file_check_status = filehandler.check_file()
+                    if file_check_status == 0:
+                        # start task
+                        if not task_manager.is_task_created(c.TASK_LINE1_NAME):
+                            task_manager.create(c.TASK_LINE1_NAME, func=dl_line1.run, args=(pipe_parent_line1, pipe_child_line1,) )
+                            task_manager.start(c.TASK_LINE1_NAME)
+                            ctrl_line1.run = True
 
-                if not task_manager.is_task_created(c.TASK_LINE2_NAME):
-                    task_manager.create(c.TASK_LINE2_NAME, func=dl_line2.run, args=(pipe_parent_line2, pipe_child_line2,) )
-                    task_manager.start(c.TASK_LINE2_NAME)
+                        if not task_manager.is_task_created(c.TASK_LINE2_NAME):
+                            task_manager.create(c.TASK_LINE2_NAME, func=dl_line2.run, args=(pipe_parent_line2, pipe_child_line2,) )
+                            task_manager.start(c.TASK_LINE2_NAME)
+                            ctrl_line2.run = True
+
+                        if not task_manager.is_task_created(c.TASK_LINE3_NAME):
+                            task_manager.create(c.TASK_LINE3_NAME, func=dl_line3.run, args=(pipe_parent_line3, pipe_child_line3,) )
+                            task_manager.start(c.TASK_LINE3_NAME)
+                            ctrl_line3.run = True
+
+                        if not task_manager.is_task_created(c.TASK_LINE4_NAME):
+                            task_manager.create(c.TASK_LINE4_NAME, func=dl_line4.run, args=(pipe_parent_line4, pipe_child_line4,) )
+                            task_manager.start(c.TASK_LINE4_NAME)
+                            ctrl_line4.run = True
+                    else :
+                        log.error("File check failed : {}".format(file_check_status))
         else:
             flag_button_pressed = False
 
-
+        ''' terminate task if task is done '''
         if task_manager.is_task_created(c.TASK_LINE1_NAME) and \
             not task_manager.is_alive(c.TASK_LINE1_NAME):
             # terminate task
             task_manager.terminate(c.TASK_LINE1_NAME)
+            ctrl_line1.run = False
 
         if task_manager.is_task_created(c.TASK_LINE2_NAME) and \
             not task_manager.is_alive(c.TASK_LINE2_NAME):
             # terminate task
             task_manager.terminate(c.TASK_LINE2_NAME)
+            ctrl_line2.run = False
 
+        if task_manager.is_task_created(c.TASK_LINE3_NAME) and \
+            not task_manager.is_alive(c.TASK_LINE3_NAME):
+            # terminate task
+            task_manager.terminate(c.TASK_LINE3_NAME)
+            ctrl_line3.run = False
+
+        if task_manager.is_task_created(c.TASK_LINE4_NAME) and \
+            not task_manager.is_alive(c.TASK_LINE4_NAME):
+            # terminate task
+            task_manager.terminate(c.TASK_LINE4_NAME)
+            ctrl_line4.run = False
+
+        ''' Check message for from another process / task '''
         for child_msg in pipe_message.receive(pipe_parent_msgs):
             source , msg, payload = child_msg
                 
@@ -215,7 +259,49 @@ def main():
                     ctrl_line2.error_show = True
                     ctrl_line2.tick_start_state = False
 
-        # tick
+            # Control Line 3
+            elif source == c.TASK_LINE3_NAME:
+                if msg == c.MESSAGE_DOWNLOADER_UPLOAD_PROGRESS :
+                    ctrl_line3.progress_value = payload
+                elif msg == c.MESSAGE_DOWNLOADER_START_TIMER:
+                    ctrl_line3.tick_time = 0
+                    ctrl_line3.tick_start_state = True
+                    ctrl_line3.error_show = False
+                    ctrl_line3.string_status = "RUN"
+                    ctrl_line3.progress_value = 0
+                elif msg == c.MESSAGE_DOWNLOADER_END_TIMER:
+                    ctrl_line3.tick_start_state = False
+                elif msg == c.MESSAGE_DOWNLOADER_FINISH_UPLOAD:
+                    ctrl_line3.tick_start_state = False
+                    ctrl_line3.string_status = "SUCCESS"
+                elif msg == c.MESSAGE_DOWNLOADER_ERROR:
+                    ctrl_line3.string_status = "Failed"
+                    ctrl_line3.string_error_value = payload
+                    ctrl_line3.error_show = True
+                    ctrl_line3.tick_start_state = False
+
+                # Control Line 4
+            elif source == c.TASK_LINE4_NAME:
+                if msg == c.MESSAGE_DOWNLOADER_UPLOAD_PROGRESS :
+                    ctrl_line4.progress_value = payload
+                elif msg == c.MESSAGE_DOWNLOADER_START_TIMER:
+                    ctrl_line4.tick_time = 0
+                    ctrl_line4.tick_start_state = True
+                    ctrl_line4.error_show = False
+                    ctrl_line4.string_status = "RUN"
+                    ctrl_line4.progress_value = 0
+                elif msg == c.MESSAGE_DOWNLOADER_END_TIMER:
+                    ctrl_line4.tick_start_state = False
+                elif msg == c.MESSAGE_DOWNLOADER_FINISH_UPLOAD:
+                    ctrl_line4.tick_start_state = False
+                    ctrl_line4.string_status = "SUCCESS"
+                elif msg == c.MESSAGE_DOWNLOADER_ERROR:
+                    ctrl_line4.string_status = "Failed"
+                    ctrl_line4.string_error_value = payload
+                    ctrl_line4.error_show = True
+                    ctrl_line4.tick_start_state = False
+
+        ''' System tick to calculate process takt time '''
         if systick_pre != datetime.now().second:
             systick_pre = datetime.now().second
             if ctrl_line1.tick_start_state:
@@ -227,100 +313,105 @@ def main():
             if ctrl_line4.tick_start_state:
                 ctrl_line4.tick_time = ctrl_line4.tick_time + 1    
 
-        '''
-        usb insertion detection
-        '''
+        ''' usb insertion detection '''
         if c_usb_insertion_detect > 40:
             c_usb_insertion_detect = 0
-            if filehandler.check_usb_plug() :
+            ''' USB plugin '''
+            if filehandler.check_usb_plug() \
+                and ctrl_line1.run == False and ctrl_line2.run == False \
+                and ctrl_line3.run == False and ctrl_line4.run == False:
                 if scan_state == False:
                     log.info("(USB) Plugin")
                     str_system_state = "(USB) Plugin"
                     scan_state = True
                     flag_usb_scan_done = False
+
+                    ''' Reset flag ready when usb plugin event '''
                     flag_ready = False
             else:
                 if scan_state == True:
                     log.info("(USB) Plugout")
                     str_system_state = "(USB) Plugout"
                     scan_state = False
-                    
-            #log.info("System state : {}".format(system_state))
+        ''' usb insertion counter periode '''
         c_usb_insertion_detect = c_usb_insertion_detect + 1
 
-        if c_system_state > 50:
-            c_system_state = 0
+        ''' usb scan process section '''
+        if system_usb_scan_state > 50:
+            system_usb_scan_state = 0
             # - IDLE -
-            if system_state == c.SYSTEM_STATE_IDLE:
+            if system_state == c.SYSTEM_USB_SCAN_IDLE:
                 
                 if scan_state == True and flag_usb_scan_done == False:
-                    system_state = c.SYSTEM_STATE_USB_SCAN             
+                    system_state = c.SYSTEM_USB_SCAN_PROCESS             
                 else:
-                    system_state = c.SYSTEM_STATE_IDLE
+                    system_state = c.SYSTEM_USB_SCAN_IDLE
                     if flag_ready == True:
-                        str_system_state = "System ready to flash"
+                        str_system_state = "Siap program"
                     else:
-                        str_system_state = "Current file empty, please update via USB Disk"
+                        str_system_state = c.ERROR_FIRMWARE_FILE_FAIL#"Firmware tidak tersedia, update dengan USB"
                 
             # - USB SCAN -
-            elif system_state == c.SYSTEM_STATE_USB_SCAN:
+            elif system_state == c.SYSTEM_USB_SCAN_PROCESS:
 
                 if scan_state == True:
                     try:
                         usb_scan_state = filehandler.usb_scan()
 
                         if usb_scan_state == c.USB_SCAN_STATE_IDLE:
-                            str_system_state = "(USB) Read"
+                            str_system_state = "(USB) Baca"
                         elif usb_scan_state == c.USB_SCAN_STATE_CHECK_CONFIG_FILE:
-                            str_system_state = "(USB) Check config file"
+                            str_system_state = "(USB) Periksa file konfigurasi"
                         elif usb_scan_state == c.USB_SCAN_STATE_CHECK_FIRMWARE_FILE:
-                            str_system_state = "(USB) Check firmware file"
+                            str_system_state = "(USB) Periksa file firmware"
                         elif usb_scan_state == c.USB_SCAN_STATE_CHECK_MD5:
-                            str_system_state = "(USB) Check MD5"
+                            str_system_state = "(USB) Periksa Checksum MD5"
                         elif usb_scan_state == c.USB_SCAN_STATE_COPY_DIRECTORY:
-                            str_system_state = "(USB) Copy directory to local target"
-                            system_state = c.SYSTEM_STATE_CHECK_FIRMWARE_EXISTANCE
+                            str_system_state = "(USB) Salin file ke lokal"
+                            system_state = c.SYSTEM_USB_SCAN_CHECK_FIRMWARE
                         else :
                             pass
 
                     except Exception as err:
-                        system_state = c.SYSTEM_STATE_ERROR
+                        system_state = c.SYSTEM_USB_SCAN_ERROR
                         log.error("Err : {}".format(err))
                         str_system_state = "Error : " + str(err)
 
             # - Check file validity
-            elif system_state == c.SYSTEM_STATE_CHECK_FIRMWARE_EXISTANCE:
+            elif system_state == c.SYSTEM_USB_SCAN_CHECK_FIRMWARE:
                 if filehandler.check_config_file() == 0 \
                     and filehandler.check_firmware() == 0   \
                     and filehandler.check_firmware_validity() == 1:
-                        system_state = c.SYSTEM_STATE_READY
-                        str_system_state = "Done"
+                        system_state = c.SYSTEM_USB_SCAN_READY
+                        str_system_state = "Selesai"
                 else:
-                    system_state = c.SYSTEM_STATE_IDLE
+                    system_state = c.SYSTEM_USB_SCAN_IDLE
 
             # - ERROR -
-            elif system_state == c.SYSTEM_STATE_ERROR:
+            elif system_state == c.SYSTEM_USB_SCAN_ERROR:
                 flag_ready = False
                 if filehandler.check_flasher_directory():
                     log.info("remove flasher directory")
                     filehandler.remove_current_directory()
                     #frame.update_filename("Empty")
-                    str_filename = "Empty"
-                system_state = c.SYSTEM_STATE_IDLE
+                    str_filename = "kosong"
+                system_state = c.SYSTEM_USB_SCAN_IDLE
                 flag_usb_scan_done = True
 
-            elif system_state == c.SYSTEM_STATE_READY:
+            # - Firmware file ready -
+            elif system_state == c.SYSTEM_USB_SCAN_READY:
                 project_name = filehandler.get_project_name()
                 #frame.update_filename(project_name)
                 str_filename = project_name
-                str_system_state = "Ready"
+                str_system_state = "Siap"
                 flag_ready = True
                 flag_usb_scan_done = True
-                system_state = c.SYSTEM_STATE_IDLE
+                system_state = c.SYSTEM_USB_SCAN_IDLE
             else:
                 pass
-        
-        c_system_state = c_system_state + 1
+
+        ''' USB scan periode '''
+        system_usb_scan_state = system_usb_scan_state + 1
         
         frame.update_status(ctrl_line1.string_status, ctrl_line2.string_status,\
             ctrl_line3.string_status, ctrl_line4.string_status)
@@ -344,28 +435,6 @@ def main():
             ctrl_line3.tick_time, ctrl_line4.tick_time)
         frame.run()
 
-def test_donwloader():
-    run = True
-    while run:
-        if not task_manager.is_task_created(c.TASK_LINE1_NAME):
-            log.info("Create task tline1")
-            task_manager.create(c.TASK_LINE1_NAME, func=dl_line1.run, args=(pipe_parent_line1, pipe_child_line1,) )
-            task_manager.start(c.TASK_LINE1_NAME)
-        
-        for child_msg in pipe_message.receive(pipe_parent_msgs):
-            source , msg, payload = child_msg
-
-            if not task_manager.is_alive(c.TASK_LINE1_NAME):
-                log.info("Terminate task tline1")
-                # terminate task
-                task_manager.terminate(c.TASK_LINE1_NAME)
-                run = False
-
-            if source == c.TASK_LINE1_NAME:
-                if msg == c.MESSAGE_DOWNLOADER_UPLOAD_PROGRESS :
-                    progress_line1 = payload
-                    log.info("Progress : {}\r".format(progress_line1))
 
 if __name__ == "__main__":
     main()
-    #test_donwloader()

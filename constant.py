@@ -36,12 +36,12 @@ USB_EVENT_COPYING_FILE = 5
 
 
 # system state
-SYSTEM_STATE_IDLE = 0
+SYSTEM_USB_SCAN_IDLE = 0
 '''
 if current flasher directory contain config file and firmware 
 and contain valid 
 '''
-SYSTEM_STATE_READY = 1
+SYSTEM_USB_SCAN_READY = 1
 
 '''
 if there is any usb plug on to update current firmware
@@ -50,19 +50,19 @@ check validity with md5 checksum
 copy file config file and firmware file to current local
 firmware directory
 '''
-SYSTEM_STATE_USB_SCAN = 2
+SYSTEM_USB_SCAN_PROCESS = 2
 
 '''
 check current firmware existance and check file validity
 with MD5 checksum
 '''
-SYSTEM_STATE_CHECK_FIRMWARE_EXISTANCE = 3
+SYSTEM_USB_SCAN_CHECK_FIRMWARE = 3
 
 
 '''
 state when proses update firmware failed or something wrong
 '''
-SYSTEM_STATE_ERROR = 4
+SYSTEM_USB_SCAN_ERROR = 4
 
 SYSTEM_STATE_BUSY = 5
 
@@ -87,7 +87,8 @@ MESSAGE_DOWNLOADER_START_TIMER = (MESSAGE_DOWNLOADER_CLASS + 14)
 MESSAGE_DOWNLOADER_END_TIMER = (MESSAGE_DOWNLOADER_CLASS + 15)
 
 '''
-Error note
+Flashing process Error note
+show in each line control window
 '''
 ERROR_UNKNOWN_MODE = "Error unknown mode"
 ERROR_APP_MODE_COMM_FAIL = "Error communication fail"
@@ -98,6 +99,24 @@ ERROR_CONFIG_MODE_AUTOBAUD_FAIL = "Error autobaudrate in config mode failed"
 ERROR_PARAMETER_UPLOAD = "Error on parameter upload"
 ERROR_SCRIPT_UPLOAD = "Error on script uploading"
 ERROR_SWITCH_APP_MODE = "Error when switching to application mode"
+
+'''
+Current file Error definition
+show in system state
+'''
+ERROR_CURRFILE_FLASHER_DIR_NOT_FOUND = "Error : Directori flasher tidak ditemukan"
+ERROR_CURRFILE_CONFIG_FILE_NOT_FOUND = "Error : File config tidak ditemukan"
+ERROR_CURRFILE_TARGET_FIRMWARE_NOT_FOUND = "Error : Firmware target tidak ditemukan"
+ERROR_CURRFILE_MD5_NOT_MATCH = "Error : MD5 tidak sesuai"
+
+'''
+usb scan error definition
+show in system state
+'''
+ERROR_USB_SCAN_FILE_FIRMWARE_NOT_FOUND = "File firmware tidak ditemukan"
+ERROR_USB_SCAN_FILE_CONFIG_NOT_FOUND = "File konfigurasi tidak ditemukan"
+ERROR_USB_SCAN_MD5_NOT_MATCH = "Checksum MD5 tidak sesuai"
+ERROR_FIRMWARE_FILE_FAIL = "FIrmware tidak ditemukan, update dengan USB"
 
 '''
 Task name

@@ -9,6 +9,7 @@ class Control:
         self.string_error_value = ""
         self.error_show = False
         self.error_state = False
+        self.run = False
 
     def reset_tick_time(self):
         pass

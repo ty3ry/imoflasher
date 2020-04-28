@@ -93,6 +93,31 @@ class FileHandler():
         else :
             return 0
 
+    def check_file(self):
+        '''
+        * Check firmware validity
+        * return :
+        0   : success
+        -1  : error - directory flasher not found
+        -2  : error - config file not found
+        -3  : error - file target.ldf not found
+        -4  : error - MD5 not match
+        '''
+        if path.isdir(self._flasher_dir):
+            if path.isfile(self._flasher_dir + self._config_filename):
+                if path.isfile(self._flasher_dir + 'target.ldf'):
+                    # check MD5
+                    if self.check_firmware_validity() == 1:
+                        return 0
+                    else:
+                        return -4
+                else:
+                    return -3
+            else:
+                return -2
+        else:
+            return -1
+
     def usb_scan(self):
 
         # state machine for usb scan
@@ -124,7 +149,7 @@ class FileHandler():
                 self.config.read(self._usb_mount_directory + 'flasher.ini')
             else:
                 self.usb_scan_state = c.USB_SCAN_STATE_IDLE
-                raise Exception("Config file not found/missing..")
+                raise Exception(c.ERROR_USB_SCAN_FILE_CONFIG_NOT_FOUND)
                 
             return self.usb_event
 
@@ -138,8 +163,9 @@ class FileHandler():
                 self.usb_scan_state = c.USB_SCAN_STATE_CHECK_MD5
             else:
                 self.usb_scan_state = c.USB_SCAN_STATE_IDLE
-                raise Exception("Firmware file ({}) not found".format(self.firmware_filename))
-                
+                #raise Exception("Firmware file ({}) tidak ditemukan".format(self.firmware_filename))
+                raise Exception(c.ERROR_USB_SCAN_FILE_FIRMWARE_NOT_FOUND)
+
             return self.usb_event
 
         elif self.usb_scan_state == c.USB_SCAN_STATE_CHECK_MD5:
@@ -158,7 +184,7 @@ class FileHandler():
                 self.usb_scan_state = c.USB_SCAN_STATE_COPY_DIRECTORY
             else:
                 self.usb_scan_state = c.USB_SCAN_STATE_IDLE
-                raise Exception("MD5 Not match..")
+                raise Exception(c.ERROR_USB_SCAN_MD5_NOT_MATCH)
                 
             return self.usb_event
 
