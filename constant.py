@@ -126,8 +126,15 @@ TASK_LINE2_NAME = "task_line2"
 TASK_LINE3_NAME = "task_line3"
 TASK_LINE4_NAME = "task_line4"
 
-'''
-GPIO pin definition
-'''
-BUTTON_START_PIN = 25
+
+'''GPIO pin definition'''
+''' single button control '''
+BUTTON_START_PIN = 22
+
+
+''' independent line control button definition '''
+BUTTON_START_LINE1 = 22
+BUTTON_START_LINE2 = 23
+BUTTON_START_LINE3 = 24
+BUTTON_START_LINE4 = 25
 
